@@ -283,6 +283,7 @@ pub fn caps(model: &LamzuModel, transport: Transport, sensor: u8) -> Capabilitie
                 ButtonActionKind::ProfileCycle,
                 ButtonActionKind::Disabled,
             ],
+            button_options: None,
             require_left_click: true,
             macros: None,
             live_buttons: vec![],

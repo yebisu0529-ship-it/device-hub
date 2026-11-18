@@ -545,6 +545,7 @@ fn build_caps() -> Capabilities {
                 ButtonActionKind::PollingCycle,
                 ButtonActionKind::Disabled,
             ],
+            button_options: None,
             require_left_click: true,
             macros: None,
             live_buttons: vec![],

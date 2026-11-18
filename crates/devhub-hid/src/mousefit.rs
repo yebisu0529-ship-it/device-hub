@@ -1135,6 +1135,7 @@ fn build_caps(info: &DeviceInfo, m: &MfModel) -> Capabilities {
                 ButtonActionKind::ProfileCycle,
                 ButtonActionKind::Disabled,
             ],
+            button_options: None,
             require_left_click: true,
             live_buttons: vec![],
             adaptive_dpi: None,

@@ -1,3 +1,5 @@
+mod onboard;
+
 use crate::transport::Channel;
 use devhub_core::backend::*;
 use devhub_core::model::*;
@@ -7,6 +9,8 @@ use std::time::{Duration, Instant};
 const SLOT: u8 = 1;
 const REPORT: u8 = 0x11;
 const POLLING: &str = "polling_wireless";
+const ONBOARD_ENABLE: &str = "onboard_enable";
+const ONBOARD_DISABLE: &str = "onboard_disable";
 
 struct Logitech {
     channel: Mutex<Channel>,
@@ -14,6 +18,7 @@ struct Logitech {
     caps: Capabilities,
     dpi: u8,
     polling: u8,
+    onboard: u8,
 }
 
 fn request(channel: &Channel, feature: u8, function: u8, params: &[u8]) -> HubResult<Vec<u8>> {
@@ -57,6 +62,8 @@ pub fn open(device: hidapi::HidDevice, info: DeviceInfo) -> HubResult<impl Devic
     }
     let dpi = feature(&channel, 0x2201)?;
     let polling = feature(&channel, 0x8060)?;
+    let onboard = feature(&channel, 0x8100)?;
+    onboard::validate(&channel, onboard)?;
     let mask = request(&channel, polling, 0, &[])?[0];
     let rates = [1, 2, 4, 8]
         .into_iter()
@@ -71,6 +78,20 @@ pub fn open(device: hidapi::HidDevice, info: DeviceInfo) -> HubResult<impl Devic
         "ポーリングレート",
         rates,
     ));
+    caps.actions.extend([
+        ActionSpec::new(
+            ONBOARD_ENABLE,
+            section::PERFORMANCE,
+            "オンボードモードをオン",
+        )
+        .confirm("マウスに保存されたボタン割り当て、DPI、ポーリングレートが有効になります。"),
+        ActionSpec::new(
+            ONBOARD_DISABLE,
+            section::PERFORMANCE,
+            "オンボードモードをオフ",
+        )
+        .help("G HUB などのアプリで設定するモードに戻します。"),
+    ]);
     caps.mouse = Some(MouseCaps {
         dpi_min: 100,
         dpi_max: 25600,
@@ -80,9 +101,20 @@ pub fn open(device: hidapi::HidDevice, info: DeviceInfo) -> HubResult<impl Devic
         xy_split: false,
         stage_colors: false,
         stage_toggle: false,
-        buttons: vec![],
-        button_kinds: vec![],
-        require_left_click: false,
+        buttons: onboard::LABELS
+            .into_iter()
+            .map(|name| ButtonSlot { name: name.into() })
+            .collect(),
+        button_kinds: vec![
+            ButtonActionKind::Mouse,
+            ButtonActionKind::Key,
+            ButtonActionKind::Media,
+            ButtonActionKind::Dpi,
+            ButtonActionKind::ProfileCycle,
+            ButtonActionKind::Disabled,
+        ],
+        button_options: Some(onboard::button_options()),
+        require_left_click: true,
         macros: None,
         live_buttons: vec![],
         adaptive_dpi: None,
@@ -93,7 +125,31 @@ pub fn open(device: hidapi::HidDevice, info: DeviceInfo) -> HubResult<impl Devic
         caps,
         dpi,
         polling,
+        onboard,
     })
+}
+
+impl Logitech {
+    fn save_profile(&self, channel: &Channel, profile: onboard::Profile) -> HubResult<()> {
+        let active = onboard::mode(channel, self.onboard)?;
+        let previous_dpi = if active {
+            Some(request(channel, self.dpi, 2, &[0])?)
+        } else {
+            None
+        };
+        profile.write(channel)?;
+        if let Some(old) = previous_dpi {
+            if request(channel, self.dpi, 2, &[0])?[1..3] != old[1..3] {
+                request(channel, self.dpi, 3, &old[..3])?;
+                if request(channel, self.dpi, 2, &[0])?[1..3] != old[1..3] {
+                    return Err(HubError::Protocol(
+                        "HID++ active DPI restoration failed".into(),
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 impl DeviceDriver for Logitech {
@@ -112,6 +168,7 @@ impl DeviceDriver for Logitech {
         if ms == 0 {
             return Err(HubError::Protocol("HID++ report interval is zero".into()));
         }
+        let profile = onboard::Profile::read(&channel, self.onboard)?;
         Ok(DeviceState {
             profile: ProfileState {
                 active: 0,
@@ -126,7 +183,7 @@ impl DeviceDriver for Logitech {
                     enabled: true,
                 }],
                 active_stage: 0,
-                buttons: vec![],
+                buttons: profile.buttons(),
                 macros: vec![],
                 adaptive: None,
             }),
@@ -154,7 +211,14 @@ impl DeviceDriver for Logitech {
                 if mask & (1 << (ms - 1)) == 0 {
                     return Err(HubError::Unsupported("HID++ polling rate"));
                 }
-                request(&channel, self.polling, 2, &[ms])?;
+                if onboard::mode(&channel, self.onboard)? {
+                    let mut profile = onboard::Profile::read(&channel, self.onboard)?;
+                    if profile.set_interval(ms) {
+                        self.save_profile(&channel, profile)?;
+                    }
+                } else {
+                    request(&channel, self.polling, 2, &[ms])?;
+                }
                 if request(&channel, self.polling, 1, &[])?[0] != ms {
                     return Err(HubError::Protocol(
                         "HID++ polling rate did not change".into(),
@@ -176,9 +240,41 @@ impl DeviceDriver for Logitech {
                     return Err(HubError::Protocol("HID++ DPI did not change".into()));
                 }
             }
+            Change::Button { slot, action } => {
+                let mut profile = onboard::Profile::read(&channel, self.onboard)?;
+                if profile.set_button(*slot, action)? {
+                    self.save_profile(&channel, profile)?;
+                }
+            }
             Change::ActiveStage(0) => {}
             _ => return Err(HubError::Unsupported("HID++ setting")),
         }
         Ok(())
+    }
+
+    fn run_action(&self, id: &str, _file: Option<&std::path::Path>) -> HubResult<ActionOutcome> {
+        let enabled = match id {
+            ONBOARD_ENABLE => true,
+            ONBOARD_DISABLE => false,
+            _ => return Err(HubError::Unsupported("HID++ action")),
+        };
+        let channel = self.channel.lock().unwrap_or_else(|err| err.into_inner());
+        if enabled {
+            // Refuse to switch to an unreadable profile or one without a left click.
+            let profile = onboard::Profile::read(&channel, self.onboard)?;
+            if !profile
+                .buttons()
+                .contains(&ButtonAction::Mouse(MouseFn::Left))
+            {
+                return Err(HubError::Invalid(
+                    "左クリックの割り当てを1つ残してください".into(),
+                ));
+            }
+        }
+        onboard::set_mode(&channel, self.onboard, enabled)?;
+        Ok(ActionOutcome {
+            message: None,
+            reload: true,
+        })
     }
 }

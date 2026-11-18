@@ -633,6 +633,8 @@ pub struct MouseCaps {
     pub buttons: Vec<ButtonSlot>,
     /// 割り当て可能な種類。
     pub button_kinds: Vec<ButtonActionKind>,
+    /// Optional allowlist for discrete mouse, media and DPI actions.
+    pub button_options: Option<Vec<ButtonAction>>,
     /// 「左クリックが最低 1 個必要」を UI でも検査する。
     pub require_left_click: bool,
     pub macros: Option<MacroCaps>,

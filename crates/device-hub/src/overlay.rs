@@ -645,10 +645,15 @@ impl Shell {
             }
         };
 
+        let allows = |action: &ButtonAction| {
+            mc.button_options
+                .as_ref()
+                .is_none_or(|options| options.contains(action))
+        };
         let detail: AnyElement = match &draft {
             ButtonAction::Mouse(m) => {
                 let mut g = div().grid().grid_cols(4).gap(px(6.));
-                for f in MOUSE_FNS {
+                for f in MOUSE_FNS.iter().filter(|f| allows(&ButtonAction::Mouse(**f))) {
                     g = g.child(
                         grid_btn(format!("mf-{f:?}"), keys::mouse_fn_name(*f), *m == *f)
                             .on_click(cx.listener(set(ButtonAction::Mouse(*f)))),
@@ -658,7 +663,7 @@ impl Shell {
             }
             ButtonAction::Media(m) => {
                 let mut g = div().grid().grid_cols(3).gap(px(6.));
-                for f in MEDIA_FNS {
+                for f in MEDIA_FNS.iter().filter(|f| allows(&ButtonAction::Media(**f))) {
                     g = g.child(
                         grid_btn(format!("md-{f:?}"), keys::media_fn_name(*f), *m == *f)
                             .on_click(cx.listener(set(ButtonAction::Media(*f)))),
@@ -682,6 +687,9 @@ impl Shell {
                         DpiFn::Shift(shift.unwrap_or(400)),
                     ),
                 ] {
+                    if !allows(&ButtonAction::Dpi(a)) {
+                        continue;
+                    }
                     let on = std::mem::discriminant(f) == std::mem::discriminant(&a);
                     g = g.child(
                         grid_btn(format!("dp-{lab}"), lab, on)

@@ -823,6 +823,7 @@ pub fn mouse_caps(wireless: bool, magnetic: bool) -> Capabilities {
                 ButtonActionKind::ScrollModeToggle,
                 ButtonActionKind::Disabled,
             ],
+            button_options: None,
             require_left_click: true,
             macros: Some(macro_caps_mouse()),
             live_buttons: if magnetic { vec![0, 1] } else { vec![] },
