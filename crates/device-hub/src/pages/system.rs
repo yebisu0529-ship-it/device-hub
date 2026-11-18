@@ -55,6 +55,7 @@ impl Shell {
                         DriverKind::Mousefit => "mouse.fit 互換".into(),
                         DriverKind::Walkplay => "WalkPlay (peq.szwalkplay.com 互換)".into(),
                         DriverKind::Atk => "ATK HUB 互換".into(),
+                        DriverKind::LogitechHidpp => "Logicool HID++".into(),
                         DriverKind::Lamzu => "LAMZU Aurora 互換".into(),
                         DriverKind::Unsupported => "未対応".into(),
                     },

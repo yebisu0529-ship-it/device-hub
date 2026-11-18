@@ -58,6 +58,19 @@ const fn mf(
 /// `PIDWired` / `PIDWireless` / `PIDWireless4K8K` から。usage_page/usage は
 /// HTS Plus Pro 実機 (0xFF02 / 0x02) と同じと仮定 — **他機種は実機で要確認**。
 pub const KNOWN: &[KnownDevice] = &[
+    KnownDevice {
+        vid: 0x046d,
+        pid: 0xc53a,
+        usage_page: Some(0xff00),
+        usage: Some(2),
+        kind: DeviceKind::Mouse,
+        vendor: "Logicool",
+        model: "pro-wireless",
+        name: "PRO Wireless (POWERPLAY)",
+        transport: Transport::Wireless24G,
+        driver: DriverKind::LogitechHidpp,
+        verified: true,
+    },
     // ---------------------------------------------------------------- キーボード
     KnownDevice {
         vid: 0x1CA6,
