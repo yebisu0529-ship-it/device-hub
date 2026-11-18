@@ -797,6 +797,7 @@ pub fn mouse_caps(wireless: bool, magnetic: bool) -> Capabilities {
             dpi_min: 50,
             dpi_max: 40_000,
             dpi_step: 10,
+            commit_dpi_on_release: false,
             min_stages: 1,
             max_stages: 7,
             xy_split: true,

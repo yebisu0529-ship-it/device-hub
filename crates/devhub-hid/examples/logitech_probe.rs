@@ -24,6 +24,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .settings
         .get("polling_wireless")
         .ok_or("Missing polling rate")?;
+    if let [arg, value] = args.as_slice() {
+        if arg == "--dpi" {
+            let mut stage = mouse.stages[0];
+            stage.x = value.parse()?;
+            driver.apply(&Change::DpiStages {
+                stages: vec![stage],
+                active: 0,
+            })?;
+            println!(
+                "Applied DPI: {}",
+                driver.read()?.mouse.ok_or("Missing mouse settings")?.stages[0].x
+            );
+            return Ok(());
+        }
+    }
     println!("DPI: {}, polling: {:?}", mouse.stages[0].x, polling);
 
     println!("Stored buttons: {:?}", mouse.buttons);

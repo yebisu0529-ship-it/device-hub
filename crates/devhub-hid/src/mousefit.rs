@@ -1107,6 +1107,7 @@ fn build_caps(info: &DeviceInfo, m: &MfModel) -> Capabilities {
         profiles: None, // open() 後に caps へ入れるため profile_count を別途反映
         mouse: Some(MouseCaps {
             dpi_min: 50,
+            commit_dpi_on_release: false,
             dpi_max: m.dpi_max,
             dpi_step: m.dpi_step,
             min_stages: 1,

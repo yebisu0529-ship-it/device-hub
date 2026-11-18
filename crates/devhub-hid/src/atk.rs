@@ -519,6 +519,7 @@ fn build_caps() -> Capabilities {
         }),
         mouse: Some(MouseCaps {
             dpi_min: 50,
+            commit_dpi_on_release: false,
             dpi_max: 42000,
             dpi_step: 1,
             min_stages: 1,

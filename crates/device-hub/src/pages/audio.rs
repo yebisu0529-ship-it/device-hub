@@ -1294,6 +1294,7 @@ impl Shell {
             1.,
             2.7,
             Some(col),
+            false,
             cx,
             move |this, nv, cx| {
                 let mut nb = band;
@@ -1327,6 +1328,7 @@ impl Shell {
             0.01,
             2.0,
             Some(col),
+            false,
             cx,
             move |this, nv, cx| {
                 let mut nb = band;

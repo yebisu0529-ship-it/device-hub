@@ -465,7 +465,7 @@ pub fn slider(
     cx: &mut Context<Shell>,
     f: impl Fn(&mut Shell, f32, &mut Context<Shell>) + 'static,
 ) -> Stateful<Div> {
-    slider_curve(id, value, min, max, step, 1., color, cx, f)
+    slider_curve(id, value, min, max, step, 1., color, false, cx, f)
 }
 
 /// `gamma` > 1 で低い値ほど細かく動かせる (DPI など桁が広い値)。
@@ -477,6 +477,7 @@ pub fn slider_curve(
     step: f32,
     gamma: f32,
     color: Option<Hsla>,
+    commit_on_release: bool,
     cx: &mut Context<Shell>,
     f: impl Fn(&mut Shell, f32, &mut Context<Shell>) + 'static,
 ) -> Stateful<Div> {
@@ -488,7 +489,14 @@ pub fn slider_curve(
     } else {
         0.
     };
-    let ts = motion::spring_with(&format!("slv:{id}"), t, 30.);
+    let preview = if commit_on_release && dragging {
+        motion::rect(&rect_key)
+            .map(|rect| ((motion::pointer()[0] - rect[0]) / rect[2].max(1.)).clamp(0., 1.))
+            .unwrap_or(t)
+    } else {
+        t
+    };
+    let ts = motion::spring_with(&format!("slv:{id}"), preview, 30.);
     let grow = motion::ease(&format!("slg:{id}"), dragging);
     let accent = color.unwrap_or(p.accent);
     let f = Rc::new(f);
@@ -568,7 +576,8 @@ pub fn slider_curve(
             MouseButton::Left,
             cx.listener(move |this, e: &MouseDownEvent, _, cx| {
                 motion::set_down(true);
-                this.begin_drag(&rk, false, apply.clone(), e.position, cx);
+                motion::set_pointer(f32::from(e.position.x), f32::from(e.position.y));
+                this.begin_drag(&rk, false, commit_on_release, apply.clone(), e.position, cx);
             }),
         )
 }

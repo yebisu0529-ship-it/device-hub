@@ -621,6 +621,8 @@ pub struct MouseCaps {
     pub dpi_max: u32,
     /// DPI の刻み (10/50/100)。
     pub dpi_step: u32,
+    /// ドラッグ中はプレビューし、操作確定時にだけ DPI を書き込む。
+    pub commit_dpi_on_release: bool,
     pub min_stages: usize,
     pub max_stages: usize,
     /// X/Y 個別 DPI。

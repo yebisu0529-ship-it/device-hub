@@ -240,6 +240,20 @@ impl Profile {
         Ok(true)
     }
 
+    pub(super) fn set_dpi(&mut self, index: u8, dpi: u16) -> HubResult<bool> {
+        if index >= 5 {
+            return Err(HubError::Protocol("Invalid HID++ DPI index".into()));
+        }
+        let offset = 3 + usize::from(index) * 2;
+        let value = dpi.to_le_bytes();
+        if self.bytes[1] == index && self.bytes[offset..offset + 2] == value {
+            return Ok(false);
+        }
+        self.bytes[1] = index;
+        self.bytes[offset..offset + 2].copy_from_slice(&value);
+        Ok(true)
+    }
+
     pub(super) fn set_interval(&mut self, ms: u8) -> bool {
         let changed = self.bytes[0] != ms;
         self.bytes[0] = ms;

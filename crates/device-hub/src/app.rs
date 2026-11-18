@@ -195,6 +195,7 @@ pub struct Drag {
     pub apply: CbF,
     /// 縦方向のドラッグ (トラベル図)。
     pub vertical: bool,
+    pub commit_on_release: bool,
     /// 2D ドラッグ (EQ グラフ)。Some なら `apply` の代わりにこちらを呼ぶ。
     pub xy: Option<CbXY>,
 }
@@ -1049,6 +1050,7 @@ impl Shell {
         &mut self,
         rect: &str,
         vertical: bool,
+        commit_on_release: bool,
         apply: CbF,
         pos: Point<Pixels>,
         cx: &mut Context<Self>,
@@ -1057,9 +1059,12 @@ impl Shell {
             rect: rect.into(),
             apply,
             vertical,
+            commit_on_release,
             xy: None,
         });
-        self.drag_to(pos, cx);
+        if !commit_on_release {
+            self.drag_to(pos, cx);
+        }
     }
 
     /// 2D ドラッグを始める (`f` は x, y = 0..1 で呼ばれる。y は上が 1)。
@@ -1074,6 +1079,7 @@ impl Shell {
             rect: rect.into(),
             apply: Rc::new(|_, _, _| {}),
             vertical: false,
+            commit_on_release: false,
             xy: Some(f),
         });
         self.drag_to(pos, cx);
@@ -1881,8 +1887,12 @@ impl Render for Shell {
             )
             .on_mouse_move(cx.listener(|this, e: &MouseMoveEvent, _, cx| {
                 motion::set_pointer(f32::from(e.position.x), f32::from(e.position.y));
-                if this.drag.is_some() {
-                    this.drag_to(e.position, cx);
+                if let Some(drag) = &this.drag {
+                    if drag.commit_on_release {
+                        cx.notify();
+                    } else {
+                        this.drag_to(e.position, cx);
+                    }
                 }
             }))
             .on_mouse_down(
@@ -1894,16 +1904,30 @@ impl Render for Shell {
             )
             .on_mouse_up(
                 MouseButton::Left,
-                cx.listener(|this, _, _, cx| {
+                cx.listener(|this, e: &MouseUpEvent, _, cx| {
                     motion::set_down(false);
+                    if this
+                        .drag
+                        .as_ref()
+                        .is_some_and(|drag| drag.commit_on_release)
+                    {
+                        this.drag_to(e.position, cx);
+                    }
                     this.drag = None;
                     cx.notify();
                 }),
             )
             .on_mouse_up_out(
                 MouseButton::Left,
-                cx.listener(|this, _, _, cx| {
+                cx.listener(|this, e: &MouseUpEvent, _, cx| {
                     motion::set_down(false);
+                    if this
+                        .drag
+                        .as_ref()
+                        .is_some_and(|drag| drag.commit_on_release)
+                    {
+                        this.drag_to(e.position, cx);
+                    }
                     this.drag = None;
                     cx.notify();
                 }),

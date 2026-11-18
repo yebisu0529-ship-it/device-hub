@@ -96,6 +96,7 @@ pub fn open(device: hidapi::HidDevice, info: DeviceInfo) -> HubResult<impl Devic
         dpi_min: 100,
         dpi_max: 25600,
         dpi_step: 50,
+        commit_dpi_on_release: true,
         min_stages: 1,
         max_stages: 1,
         xy_split: false,
@@ -234,8 +235,18 @@ impl DeviceDriver for Logitech {
                 {
                     return Err(HubError::Invalid("HID++ DPI".into()));
                 }
-                let [hi, lo] = (stage.x as u16).to_be_bytes();
-                request(&channel, self.dpi, 3, &[0, hi, lo])?;
+                let dpi = stage.x as u16;
+                if onboard::mode(&channel, self.onboard)? {
+                    let index = request(&channel, self.onboard, 11, &[])?[0];
+                    let mut profile = onboard::Profile::read(&channel, self.onboard)?;
+                    if profile.set_dpi(index, dpi)? {
+                        profile.write(&channel)?;
+                    }
+                }
+                let [hi, lo] = dpi.to_be_bytes();
+                if request(&channel, self.dpi, 2, &[0])?[1..3] != [hi, lo] {
+                    request(&channel, self.dpi, 3, &[0, hi, lo])?;
+                }
                 if request(&channel, self.dpi, 2, &[0])?[1..3] != [hi, lo] {
                     return Err(HubError::Protocol("HID++ DPI did not change".into()));
                 }

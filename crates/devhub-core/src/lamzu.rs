@@ -262,6 +262,7 @@ pub fn caps(model: &LamzuModel, transport: Transport, sensor: u8) -> Capabilitie
         }),
         mouse: Some(MouseCaps {
             dpi_min: 50,
+            commit_dpi_on_release: false,
             dpi_max,
             dpi_step,
             min_stages: 1,

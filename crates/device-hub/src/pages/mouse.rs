@@ -346,6 +346,7 @@ impl Shell {
             step,
             2.4,
             Some(color),
+            mc.commit_dpi_on_release,
             cx,
             move |this, v, cx| {
                 let mut s = stages_x.clone();
@@ -427,6 +428,7 @@ impl Shell {
                         step,
                         2.4,
                         Some(color),
+                        mc.commit_dpi_on_release,
                         cx,
                         move |this, v, cx| {
                             let mut s = stages_y.clone();
